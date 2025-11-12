@@ -1,4 +1,5 @@
-load('/home/gustave/sage/Linkable_Ring_Signatures_from_SIDH/full_sigma_protocol.sage') 
+#load('/home/gustave/sage/Linkable_Ring_Signatures_from_SIDH/full_sigma_protocol.sage') 
+from full_sigma_protocol import *
 
 def RS_sign(pp,sk,t,Ring,msg):
     fcom=full_Commitment(pp,sk,t,Ring)
@@ -23,12 +24,13 @@ def RS_verify(pp,Ring,msg,sigma):
 
 #setup test
 pp=SetUp(32)
-keys=[KeyGen(pp,rd) for rd in range(8)]
+keys=[KeyGen(pp,rd) for rd in range(4)]
 #print('keys=',keys)
 Ring=[K.pk for K in keys]
 #print('Ring=',Ring)
 t=2
 sk=keys[t].sk
+print(sk)
 msg='isogeny-based ring signature'
 print('.....................................................')
 #for _ in range(10):
