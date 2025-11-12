@@ -27,8 +27,11 @@ class SetUp():
         self.N=1
         self.e1=ceil(self.lamda/log(self.l1,2))
         self.e2=ceil(self.lamda/log(self.l2,2))
-        if linkeable:
-            self.N=7^(ceil(lamda/log(7,2)))
+        self.linkeable=linkeable
+        if self.linkeable:
+            # self.N=7^(ceil(lamda/log(7,2)))
+            self.N = 29 
+        self.p=self.prime_gen()
         
     '''the functions d1, d2 return d1 and d2 such that p=d1.d2.f-1'''
     def d1(self):
@@ -37,9 +40,21 @@ class SetUp():
     def d2(self):
         return self.l2^(self.e2)
     
-    def prime(self):
+    def prime_gen(self):
         #p_128=2^128 * 3^81-1, 2^2 * 3^81 * 5^57 -1
-        return good_prime(self.d1(),self.d2(),self.N)
+        # return good_prime(self.d1(),self.d2(),self.N)
+
+        p = (2**3) * (3 ** 22) * (5 ** 14) - 1
+        print(f'DEBUG: Using fixed prime p={factor(p+1)}-1 for testing purposes.')
+        assert (p + 1)*(p - 1) % (self.d1()*self.d2() ) == 0
+        assert gcd( self.d1() , self.d2() ) == 1
+        if self.linkeable:
+            assert (p + 1)*(p - 1) % self.N == 0
+            assert gcd(self.N , self.d1()*self.d2() ) == 1
+        # p - 1 = 2 * 7 * 13 * 29 * 6581 * 46219 * 954455819
+        return p
+
+
         
     def torsion_basis(self,E,d,T=None):
         if T==None:
@@ -49,14 +64,24 @@ class SetUp():
        
     def deg_phi(self): #deg(phi)=A
         return (self.d1())^(self.k1)
+
     def deg_psi(self): #deg(psi)=B
         return (self.d2())^(self.k2)
-    def initial_curve(self):
-        p=self.prime()
+
+    def gen_initial_curve(self):
+        p=self.p
+        print('Generating initial curve over GF(p^2) with p=',factor(p+1),'-1')
         Fp=GF(p)
-        R=Fp["x"]
+        # R=Fp["x"]
         self.Fq=GF(p^2,'i',modulus=x**2+1)
-        return EllipticCurve(self.Fq,[0,6,0,1,0])
+        if self.linkeable:
+            print('Memo: we need a curve with unknown end ring')
+        self.start_curve =  EllipticCurve(self.Fq,[0,6,0,1,0])
+
+    def initial_curve(self):
+        if not hasattr(self, 'start_curve'):
+            self.gen_initial_curve()
+        return self.start_curve
         
     def H(self,data):  #The hash function
         h= hashlib.shake_256()
@@ -150,7 +175,7 @@ class SetUp():
 
 #setup test
 pp=SetUp(128)
-p=pp.prime()
+p=pp.p
 d1=pp.d1()
 d2=pp.d2()
 print('p=',factor(p+1),'-1')
