@@ -1,15 +1,15 @@
-from Linkable_Ring_Signatures_from_SIDH.two_isogenies.Theta_SageMath.utilities.supersingular import *
-from Linkable_Ring_Signatures_from_SIDH.two_isogenies.Theta_SageMath.montgomery_isogenies.kummer_isogeny import *
-from Linkable_Ring_Signatures_from_SIDH.two_isogenies.Theta_SageMath.utilities.discrete_log import *
+from two_isogenies.Theta_SageMath.utilities.supersingular import *
+from two_isogenies.Theta_SageMath.montgomery_isogenies.kummer_isogeny import *
+from two_isogenies.Theta_SageMath.utilities.discrete_log import *
 
 #...............................................................................|
 #................  FUNCTIONS RELATED TO ISOGENIES ..............................|
 #...............................................................................|
 def my_torsion_basis(E,d,T=None):
-        if T==None:
-            return torsion_basis(E,d)
-        R=compute_linearly_independent_point(E, T, d, x_start=0)
-        return R,T
+    if T==None:
+        return torsion_basis(E,d)
+    R=compute_linearly_independent_point(E, T, d, x_start=0)
+    return R,T
 
 def kumer_isogeny(E,xP,d):
     '''Compute the isogeny of domain E and kernel <P> wher P=(xP,yP) using Kummer line'''
@@ -36,7 +36,7 @@ def CGL(E,c,d,k,return_kernel=False):
     #phi_i=Ei.isogeny(K,algorithm="factored")
     if return_kernel:
         vec.append(xK)
-        
+
     for i in range(1,k):
         # Compute the curve from the Kummer Line
         Li=phi_i.codomain()
@@ -134,8 +134,8 @@ def SIDH_diagram(xK_phi,d1,xK_psi,d2):
     phi_prim=KummerLineIsogeny(L2,xK_phi_prim,d1)
     assert phi_prim.codomain()==psi_prim.codomain()
     return xK_phi_prim,xK_psi_prim
-    
-    
+
+
 def SIDH_lider_2(vect_xK_phi,d1,vect_xK_psi,d2):
     '''
     For 2x2 SIDH lider
