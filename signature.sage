@@ -25,7 +25,7 @@ def RS_verify(pp,Ring,msg,sigma):
 
 #setup test
 pp=SetUp(128)
-keys=[KeyGen(pp,rd) for rd in range(4)]
+keys=[KeyGen(pp,rd) for rd in range(8)]
 #print('keys=',keys)
 Ring=[K.pk for K in keys]
 #print('Ring=',Ring)
