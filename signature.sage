@@ -1,5 +1,6 @@
 #load('/home/gustave/sage/Linkable_Ring_Signatures_from_SIDH/full_sigma_protocol.sage') 
 from full_sigma_protocol import *
+import random
 
 def RS_sign(pp,sk,t,Ring,msg):
     fcom=full_Commitment(pp,sk,t,Ring)
@@ -23,7 +24,7 @@ def RS_verify(pp,Ring,msg,sigma):
 #.....................................................
 
 #setup test
-pp=SetUp(32)
+pp=SetUp(128)
 keys=[KeyGen(pp,rd) for rd in range(4)]
 #print('keys=',keys)
 Ring=[K.pk for K in keys]

@@ -16,7 +16,7 @@ class full_Commitment():
     def commit(self):
         ''' Algorithm tild{P_1}'''
         lamda=self.pp.lamda
-        size=pari(Integer(2**lamda))
+        size=Integer(2**lamda)
         [val_seed_root,val_rd0_root]=sample(range(size),2)
         #seed_root=ZZ.random_element(2^lamda)
         #rd0_root=ZZ.random_element(2^lamda)

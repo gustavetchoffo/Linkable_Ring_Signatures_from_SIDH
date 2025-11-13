@@ -27,7 +27,7 @@ def PRNG(seed,n,d,lamda):
     Zd=IntegerModRing(d)
     set_random_seed(seed)
     a=Integer(Zd.random_element())
-    rd=sample(range(_sage_const_2 **lamda),n)
+    rd=[ZZ.random_element(2**lamda) for _ in range(n)]
     return a,rd
 
 def PRF(root,lamda):  
@@ -35,7 +35,12 @@ def PRF(root,lamda):
     output: a vector of 2 lambda bits strings'''
     import hashlib
     h= hashlib.shake_256()
-    h.update(bytes(root))
+    if isinstance(root, int):
+        h.update(root.to_bytes(lamda//_sage_const_8 ,byteorder='big'))
+    else:
+        if isinstance(root, bytes):
+            #print('root is bytes')
+            h.update(root)
     seed=h.digest(lamda//_sage_const_4 )
     split = lamda//_sage_const_8 
     return [seed[:split], seed[split:]]
