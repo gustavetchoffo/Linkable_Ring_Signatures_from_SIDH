@@ -8,16 +8,11 @@ from sage.all_cmdline import *   # import sage library
 from sage.all import Integer, RealNumber, ceil, ZZ, randint
 
 from setup import SetUp
-from Sigma_protocol_single import Commitment, response, verivication, KeyGen
+from Sigma_protocol_single import Commitment, response, verification, KeyGen
 from util.isogenies import CGL
 from util.generalities import SeedTree, Node_seed, parse_hashs_t_w, set_seed, recover_leaves
 
-_sage_const_2 = Integer(2)
-_sage_const_1p71 = RealNumber('1.71')
-_sage_const_0 = Integer(0)
-_sage_const_7 = Integer(7)
-_sage_const_1 = Integer(1)
-_sage_const_3 = Integer(3)
+LEN = RealNumber('1.71')
 
 
 class full_Commitment():
@@ -32,16 +27,18 @@ class full_Commitment():
         self.rd0_tree = None
 
     def commit(self):
-        ''' Algorithm tild{P_1}'''
+        ''' 
+        Algorithm tilde{P_1}
+        '''
         lamda = self.pp.lamda
         size = 2**lamda
-        val_seed_root, val_rd0_root = randint(
-            0, size - 1), randint(0, size - 1)
+        val_seed_root = randint(0, size - 1)
+        val_rd0_root =  randint(0, size - 1)
 
-        m = ceil(lamda*_sage_const_1p71)
+        m = ceil(lamda*LEN)
 
         seed_root = Node_seed(val_seed_root, parent=None, left_child=None,
-                              right_child=None, h=_sage_const_0, i=_sage_const_0, nb_leaves=m)
+                              right_child=None, h=0, i=0, nb_leaves=m)
         self.seed_tree = SeedTree(seed_root, m, lamda)
         seed_leaves = self.seed_tree.leaves()
 
@@ -49,7 +46,7 @@ class full_Commitment():
         seed = [int.from_bytes(val) for val in seed_bytes]
 
         rd0_root = Node_seed(val_rd0_root, parent=None, left_child=None,
-                             right_child=None, h=_sage_const_0, i=_sage_const_0, nb_leaves=m)
+                             right_child=None, h=0, i=0, nb_leaves=m)
         self.rd0_tree = SeedTree(rd0_root, m, lamda)
         rd0_leaves = self.rd0_tree.leaves()
         rd0_bytes = [leaf.value for leaf in rd0_leaves]
@@ -60,21 +57,22 @@ class full_Commitment():
                 self.pp, self.sk, self.t, self.Ring, seed=seed[i], rd0=rd0[i]))
         self.com = [Co.com() for Co in self.vect_com]
         # print(f'...nb_com={len(self.vect_com)}')
+        # TODO we still have to build the merkle tree over com here
         return self.com
 
 
 def Challenge(pp, com, msg=None):
     lamda = pp.lamda
-    m = ceil(pp.lamda*_sage_const_1p71)
-    w = ceil(pp.lamda/_sage_const_7)
+    m = ceil(pp.lamda*LEN)
+    w = ceil(pp.lamda/7)
     data = b''
-    [data := data+c[_sage_const_0]+c[_sage_const_1] for c in com]
+    data = b"".join([bytes(f"{x}", "utf-8") for x in com])
     if msg != None:
         msg = msg.encode()
         data += msg
         # d=randint(1,2**lamda-1)
         # data=d.to_bytes(lamda/8)
-    ch = parse_hashs_t_w(data, _sage_const_3, m, w)
+    ch = parse_hashs_t_w(data, 3, m, w)
     return ch
 
 
@@ -91,24 +89,22 @@ def Response(Commitment, ch):
     m = len(com)
     resp = {}
 
+    # [resp[i]=response(pp,sk,Ring,t,vect_com[i],2) for i in range(m) if ch[i]==2]
+    rd_internal_2 = rd0_tree.releaseSeed(ch, 2)
+
     # resp for ch=-1=2
     for i in range(m):
-        if ch[i] == _sage_const_2:
-            resp[i] = response(pp, sk, Ring, t, vect_com[i], _sage_const_2)
-
-    # [resp[i]=response(pp,sk,Ring,t,vect_com[i],2) for i in range(m) if ch[i]==2]
-    rd_internal_2 = rd0_tree.releaseSeed(ch, _sage_const_2)
-
-    # resp for ch=0
-    for i in range(m):
-        if ch[i] == _sage_const_0:
-            resp[i] = response(pp, sk, Ring, t, vect_com[i], _sage_const_0)
+        if ch[i] == 2:
+            resp[i] = response(pp, sk, Ring, t, vect_com[i], 2)
+        # resp for ch=0
+        if ch[i] == 0:
+            resp[i] = response(pp, sk, Ring, t, vect_com[i], 0)
 
     # [resp[i]=response(pp,sk,Ring,t,vect_com[i],0) for i in range(m) if ch[i]==0]
-    rd_internal_0 = rd0_tree.releaseSeed(ch, _sage_const_0)
+    rd_internal_0 = rd0_tree.releaseSeed(ch, 0)
 
     # resp for ch=1
-    seed_internal = seed_tree.releaseSeed(ch, _sage_const_1)
+    seed_internal = seed_tree.releaseSeed(ch, 1)
 
     return [resp, rd_internal_2, rd_internal_0, seed_internal]
 
@@ -118,25 +114,25 @@ def verify(pp, Ring, com, ch, rsp):
     lamda = pp.lamda
     [resp, rd_internal_2, rd_internal_0, seed_internal] = rsp
 
-    leaves_b = recover_leaves(seed_internal, ch, _sage_const_1, lamda)
+    leaves_b = recover_leaves(seed_internal, ch, 1, lamda)
     leaves = [int.from_bytes(leaf) for leaf in leaves_b]
 
-    rd0_2_b = recover_leaves(rd_internal_2, ch, _sage_const_2, lamda)
+    rd0_2_b = recover_leaves(rd_internal_2, ch, 2, lamda)
     rd0_2 = [int.from_bytes(leaf) for leaf in rd0_2_b]
-    rd0_0_b = recover_leaves(rd_internal_0, ch, _sage_const_0, lamda)
+    rd0_0_b = recover_leaves(rd_internal_0, ch, 0, lamda)
     rd0_0 = [int.from_bytes(leaf) for leaf in rd0_0_b]
     for i in range(len(ch)):
-        if ch[i] == _sage_const_1:
-            resp[i] = leaves[_sage_const_0]
-            leaves.remove(leaves[_sage_const_0])
+        if ch[i] == 1:
+            resp[i] = leaves[0]
+            leaves.remove(leaves[0])
         else:
-            if ch[i] == _sage_const_2:
-                resp[i].append(rd0_2[_sage_const_0])
-                rd0_2.remove(rd0_2[_sage_const_0])
+            if ch[i] == 2:
+                resp[i].append(rd0_2[0])
+                rd0_2.remove(rd0_2[0])
             else:
-                resp[i][_sage_const_0].append(rd0_0[_sage_const_0])
-                rd0_0.remove(rd0_0[_sage_const_0])
-    return all([verivication(pp, Ring, com[i], ch[i], resp[i]) for i in range(len(ch))])
+                resp[i][0].append(rd0_0[0])
+                rd0_0.remove(rd0_0[0])
+    return all([verification(pp, Ring, com[i], ch[i], resp[i]) for i in range(len(ch))])
 
 
 # .....................................................
@@ -182,7 +178,7 @@ if __name__ == "__main__":
     Com = Commitment(pp, sk, t, Ring, seed=None, rd0=None)
     com = Com.com()
     resp = response(pp, sk, Ring, t, Com, ch, with_rd=True)
-    print(verivication(pp, Ring, com, ch, resp))
+    print(verification(pp, Ring, com, ch, resp))
     t2 = time.time()
     # xR=vect_K_phi[0]
     # E=xR.parent().curve()
