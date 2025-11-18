@@ -148,7 +148,7 @@ if __name__ == "__main__":
     E0 = pp.initial_curve()
     A = pp.deg_phi()
     B = pp.deg_psi()
-    keys = [KeyGen(pp, rd) for rd in range(8)]
+    keys = [ KeyGen(pp, rd) for rd in range(8) ]
     # print('keys=',keys)
     Ring = [K.pk for K in keys]
     # print('Ring=',Ring)
@@ -172,7 +172,7 @@ if __name__ == "__main__":
     print('verify:', t5-t4, 's', verif)
 
     ch = 2
-    vect_K_phi, E1 = CGL(E0, sk, d1, k1, return_kernel=True)
+    E1, vect_K_phi = CGL(E0, sk, d1, k1, return_kernel=True)
 
     t1 = time.time()
     Com = Commitment(pp, sk, t, Ring, seed=None, rd0=None)

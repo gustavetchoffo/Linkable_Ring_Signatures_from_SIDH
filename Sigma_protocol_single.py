@@ -5,31 +5,55 @@ from sage.all_cmdline import *   # import sage library
 
 from setup import *
 
+from setup import LINKABLE, SetUp
 
-''' Hier is the OR-sigma protocol with sigle challenge'''
+from two_isogenies.Theta_SageMath.utilities.supersingular import generate_point_order_D
+from two_isogenies.Theta_SageMath.montgomery_isogenies.kummer_line import KummerLine
+
+
+# Hier is the OR-sigma protocol with sigle challenge
 class KeyGen():
-    def __init__(self,pp,rd):
+    def __init__(self, pp : SetUp, rd):
         self.rd=rd
         self.pp=pp
-        d1=pp.d1()
-        k1=pp.k1
-        E0=pp.initial_curve()
-        A=pp.deg_phi()
-        Z_A=IntegerModRing(A)
+        d1  = pp.d1()
+        k1  = pp.k1
+        E0  = pp.initial_curve()
+        A   = pp.deg_phi()
+        Z_A = IntegerModRing(A)
+        self.N = pp.N_value()
+
+
         set_random_seed(self.rd)
-        self.sk=Integer(Z_A.random_element())
-        self.pk=CGL(E0,self.sk,d1,k1,return_kernel=False)
+        self.sk = Integer(Z_A.random_element())
+        self.pk, phi_dual = CGL(E0,self.sk,d1,k1,
+                            return_phi_dual= True)
+        self.phi_dual = phi_dual
+        if LINKABLE:
+            # phi is given by kers
+            self.fixed_tag = next(generate_point_order_D(self.pk, self.N))
+            # gen phi_dual(fixed_tag)
+            Px = KummerLine(self.pk)(self.fixed_tag)
+            for phi in (phi_dual):
+                Px = phi(Px)
+            self.fixed_tag_dual = Px.curve_point()
+            assert not LINKABLE or self.fixed_tag_dual.order() == self.N
+            assert not LINKABLE or self.fixed_tag_dual in E0
+        # print(f'KeyGen done: pk={self.pk.j_invariant()} '
+        #       f' sk={self.sk} fixed_tag_dual={self.fixed_tag_dual} ')
+
 
     def __repr__(self):
-        return f'pk={self.pk} and sk={self.sk}'
+        return f'pk={self.pk} and sk={self.sk}' + \
+               (f' and fixed_tag_dual={self.fixed_tag_dual} for the linkability' if LINKABLE else '')
 
 class Commitment():
     def __init__(self,pp,sk,t,R,seed=None,rd0=None):
-        
+
         B=pp.deg_psi()
         ZB=IntegerModRing(B)
         self.seed=set_seed(seed)
-        
+
         self.a=0 
         self.rd=[]
         self.path=[]
@@ -53,7 +77,7 @@ class Commitment():
         vect_com_R=[]
         for i in range(n):
             E1=self.Ring[i]
-            E3=CGL(E1,self.a,d2,k2,return_kernel=False)
+            E3, _ =CGL(E1,self.a,d2,k2,return_kernel=False)
             j3=E3.j_invariant()
             
             vect_com_R.append(self.pp.C(j3.to_bytes(),self.rd[i]))
@@ -70,13 +94,13 @@ class Commitment():
         k1=self.pp.k1
         
         E0=self.pp.initial_curve()
-        vect_K_phi,E1=CGL(E0,sk,d1,k1,return_kernel=True)
+        E1, vect_K_phi =CGL(E0,sk,d1,k1,return_kernel=True)
         assert E1==Ring[self.t]
         vect_K_phi_dual=[kernel_dual(xK) for xK in vect_K_phi]
         vect_K_phi_dual.reverse()
         print('test1',vect_K_phi_dual[0].parent().curve()==E1)
         
-        vect_K_psi_prim,E3=CGL(E1,self.a,d2,k2,return_kernel=True)
+        E3, vect_K_psi_prim=CGL(E1,self.a,d2,k2,return_kernel=True)
         
         self.vect_K_phi_prim,self.vect_K_psi=SIDH_lider_2(vect_K_phi_dual,d1,vect_K_psi_prim,d2)
         E2=self.vect_K_phi_prim[1].parent()
@@ -106,12 +130,12 @@ class Commitment():
         vect_com_R=[]
         for i in range(n):
             if i==t:
-                vect_K_phi,E1=CGL(E0,sk,d1,k1,return_kernel=True)
+                E1, vect_K_phi =CGL(E0,sk,d1,k1,return_kernel=True)
                 assert E1==R[self.t]
                 vect_K_phi_dual=[kernel_dual(xK) for xK in vect_K_phi]
                 vect_K_phi_dual.reverse()
 
-                vect_K_psi_prim,E3=CGL(E1,self.a,d2,k2,return_kernel=True)
+                E3, vect_K_psi_prim=CGL(E1,self.a,d2,k2,return_kernel=True)
 
                 j3=E3.j_invariant()
                 C1=self.pp.C(j3.to_bytes(),self.rd[i].to_bytes(pp.lamda // 8 ))
@@ -133,7 +157,7 @@ class Commitment():
                 C0=pp.C(self.j2.to_bytes(),self.rd0.to_bytes( pp.lamda // 8 ))
             else:
                 E1=self.R[i]
-                E3=CGL(E1,self.a,d2,k2,return_kernel=False)
+                E3, _ =CGL(E1,self.a,d2,k2,return_kernel=False)
                 j3=E3.j_invariant()
 
                 C1=pp.C(j3.to_bytes(),self.rd[i].to_bytes( pp.lamda // 8 ))
@@ -196,7 +220,7 @@ def verification(pp,R,com,ch,resp):
         vect_com=[]
         d=pp.d2()
         for i in range(n):
-            E3=CGL(R[i],a,d,2 ,return_kernel=False)
+            E3, _ =CGL(R[i],a,d,2 ,return_kernel=False)
             j3=E3.j_invariant()
             C2=pp.C(j3.to_bytes(),rd[i].to_bytes( pp.lamda // 8  ))
             vect_com.append(C2)
@@ -233,81 +257,80 @@ def verification(pp,R,com,ch,resp):
             return False
         return True
 
-'''
 #.....................................................
 #................ test .............................
 #.....................................................
 
-#setup test
-pp=SetUp(32)
-p=pp.prime()
-d1=pp.d1()
-d2=pp.d2()
-print('p=',factor(p+1),'-1')
-E0=pp.initial_curve()
-A=pp.deg_phi()
-B=pp.deg_psi()
-keys=[KeyGen(pp,rd) for rd in range(8)]
-#print('keys=',keys)
-Ring=[K.pk for K in keys]
-#print('Ring=',Ring)
-t=2
-sk=keys[t].sk
-#sk=116852
-k1=2
-ch=2
-vect_K_phi,E1=CGL(E0,sk,d1,k1,return_kernel=True)
+if __name__ == '__main__':
+    #setup test
+    pp=SetUp(32)
+    p=pp.prime()
+    d1=pp.d1()
+    d2=pp.d2()
+    print('p=',factor(p+1),'-1')
+    E0=pp.initial_curve()
+    A=pp.deg_phi()
+    B=pp.deg_psi()
+    keys=[KeyGen(pp,rd) for rd in range(8)]
+    #print('keys=',keys)
+    Ring=[K.pk for K in keys]
+    #print('Ring=',Ring)
+    t=2
+    sk=keys[t].sk
+    #sk=116852
+    k1=2
+    ch=2
+    E1, vect_K_phi = CGL(E0,sk,d1,k1,return_kernel=True)
 
-t1=time.time()
-Com=Commitment(pp,sk,t,Ring,seed=None,rd0=None)
-com=Com.com()
-resp=response(pp,sk,Ring,t,Com,ch,with_rd=True)
-print(verivication(pp,Ring,com,ch,resp))
-t2=time.time()
-xR=vect_K_phi[0]
-E=xR.parent().curve()
-R=xR.curve_point()
-P,Q=torsion_basis(E,d1)
-c=point_to_int(xR,P,Q)
-#print(R==c*P+Q)
-print(R)
-#print(P+c*Q)
-
-
-
-Z_A=IntegerModRing(A)
-Z_B=IntegerModRing(B)
-a=Integer(Z_A.random_element())
-b=Integer(Z_B.random_element())
-
-vect_xK_phi,E1=CGL(E0,a,d1,2,return_kernel=True)
-L1=KummerLine(E1)
-xK1,xK2=vect_xK_phi
-Lp1=xK1.parent()
-Lp2=xK2.parent()
-phi1=KummerLineIsogeny(Lp1,xK1,d1)
-phi2=KummerLineIsogeny(Lp2,xK2,d1)
-
-#
-print('test',phi2.codomain().curve()==E1)
-t1=time.time()
-vect_xK_phi_dual=[kernel_dual(xK) for xK in vect_xK_phi]
-t2=time.time()
-vect_xK_phi_dual.reverse()
-[xK1,xK2]=vect_xK_phi_dual
+    t1=time.time()
+    Com=Commitment(pp,sk,t,Ring,seed=None,rd0=None)
+    com=Com.com()
+    resp=response(pp,sk,Ring,t,Com,ch,with_rd=True)
+    print(verification(pp,Ring,com,ch,resp))
+    t2=time.time()
+    xR=vect_K_phi[0]
+    E=xR.parent().curve()
+    R=xR.curve_point()
+    P,Q=torsion_basis(E,d1)
+    c=point_to_int(xR,P,Q)
+    #print(R==c*P+Q)
+    print(R)
+    #print(P+c*Q)
 
 
-vect_xK_psi_prim,E3=CGL(E1,b,d2,2,return_kernel=True)
-xT1,xT2=vect_xK_psi_prim
-print('test1:',xT1.parent()==L1)
-print('test1:',xK1.parent()==L1)
-#print(SIDH_diagram(xK1,d1,xT1,d2))
 
-t5=time.time()
+    Z_A=IntegerModRing(A)
+    Z_B=IntegerModRing(B)
+    a=Integer(Z_A.random_element())
+    b=Integer(Z_B.random_element())
 
-print(SIDH_lider_2(vect_xK_phi_dual,d1,vect_xK_psi_prim,d2))
-t6=time.time()
-print('t3=',t2-t1,'s')
-'''
+    vect_xK_phi,E1=CGL(E0,a,d1,2,return_kernel=True)
+    L1=KummerLine(E1)
+    xK1,xK2=vect_xK_phi
+    Lp1=xK1.parent()
+    Lp2=xK2.parent()
+    phi1=KummerLineIsogeny(Lp1,xK1,d1)
+    phi2=KummerLineIsogeny(Lp2,xK2,d1)
+
+    #
+    print('test',phi2.codomain().curve()==E1)
+    t1=time.time()
+    vect_xK_phi_dual=[kernel_dual(xK) for xK in vect_xK_phi]
+    t2=time.time()
+    vect_xK_phi_dual.reverse()
+    [xK1,xK2]=vect_xK_phi_dual
+
+
+    vect_xK_psi_prim,E3=CGL(E1,b,d2,2,return_kernel=True)
+    xT1,xT2=vect_xK_psi_prim
+    print('test1:',xT1.parent()==L1)
+    print('test1:',xK1.parent()==L1)
+    #print(SIDH_diagram(xK1,d1,xT1,d2))
+
+    t5=time.time()
+
+    print(SIDH_lider_2(vect_xK_phi_dual,d1,vect_xK_psi_prim,d2))
+    t6=time.time()
+    print('t3=',t2-t1,'s')
 
 
