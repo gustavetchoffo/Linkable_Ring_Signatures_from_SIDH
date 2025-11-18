@@ -26,10 +26,10 @@ def kumer_isogeny(E,xP,d):
 
 
 
-def CGL(E,c,d,k,return_kernel=False):
-    M=c.digits(d,padto=k)
+def CGL(E,c,d,k,return_kernel=False, return_phi_dual = False):
+    M = c.digits(d,padto=k)
     #print('c in CGL=',c)
-    P,Q=torsion_basis(E,d) 
+    P,Q = torsion_basis(E,d)
     #print('P=',P,'\n Q=',Q)
     if d%_sage_const_2 ==_sage_const_0 :
         f=factor(d)[_sage_const_0 ][_sage_const_1 ]
@@ -39,10 +39,16 @@ def CGL(E,c,d,k,return_kernel=False):
     xK=L(K[_sage_const_0 ])
     phi_i=KummerLineIsogeny(L,xK,d)
     vec=[]
+    phi_list=[]
     #phi_i=Ei.isogeny(K,algorithm="factored")
     if return_kernel:
         vec.append(xK)
-        
+
+    if return_phi_dual:
+        xK_dual=phi_i(L(Q[_sage_const_0 ]))
+        phi_dual = KummerLineIsogeny(phi_i.codomain(),xK_dual,d)
+        phi_list.append(phi_dual)
+
     for i in range(_sage_const_1 ,k):
         # Compute the curve from the Kummer Line
         Li=phi_i.codomain()
@@ -56,17 +62,24 @@ def CGL(E,c,d,k,return_kernel=False):
         P,Q=my_torsion_basis(Ei,d,phi_Q)
         #print('P=',P,'\n Q=',Q)
         K=P+M[i]*Q
-        xK=Li(K[_sage_const_0 ])
-        phi_i=KummerLineIsogeny(Li,xK,d)
+        xK      = Li(K[0])
+        phi_i = KummerLineIsogeny(Li,xK,d)
         if return_kernel:
             vec.append(xK)
+        if return_phi_dual:
+            xK_dual = phi_i(Li(Q[0]))
+            phi_dual = KummerLineIsogeny(phi_i.codomain(),xK_dual,d)
+            phi_list.append(phi_dual)
         #PHI.append(phi_i) 
     E1=phi_i.codomain().curve()
     E1.set_order((p+_sage_const_1 )**_sage_const_2 , num_checks=_sage_const_0 )
     if return_kernel:
-        return vec,E1
-    return E1
+        return E1, vec
+    if return_phi_dual:
+        return E1, reversed(phi_list)
+    return E1, None
 
+# giacomo this is not correct, need to be fixed
 def dual_isogeny(phi):
     L0=phi.domain()
     E0=L0.curve()
@@ -93,7 +106,7 @@ def dual_isogeny(phi):
                     raise NotImplementedError('stil to understand how to compute the dual isogeny of power 2 Kummer isogeny')
             break
         continue
-    phi_tild=KummerLineIsogeny(L1, xR, d)
+    phi_tild = KummerLineIsogeny(L1, xR, d)
     E=phi_tild.codomain().curve()
     #print(E0.is_isomorphic(E))
     #eta=E.isomorphism_to(E0)
@@ -140,8 +153,8 @@ def SIDH_diagram(xK_phi,d1,xK_psi,d2):
     phi_prim=KummerLineIsogeny(L2,xK_phi_prim,d1)
     assert phi_prim.codomain()==psi_prim.codomain()
     return xK_phi_prim,xK_psi_prim
-    
-    
+
+
 def SIDH_lider_2(vect_xK_phi,d1,vect_xK_psi,d2):
     '''
     For 2x2 SIDH lider
