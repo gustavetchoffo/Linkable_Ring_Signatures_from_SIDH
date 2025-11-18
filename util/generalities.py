@@ -9,17 +9,21 @@ from hashlib import shake_256
 import random
 
 def good_prime(d1,d2,N):
-    for f in range(_sage_const_100 ):
-        p=d1*d2*N*f-_sage_const_1 
-        if is_prime(p) and p%_sage_const_4 ==_sage_const_3 :
+    f = 1
+    while True:
+        p= d1*d2*N*f -  1
+        if is_prime(p) and p % 4  == 3:
             break
+        f += 1
+
+    print(f'Good prime found: p={(p+1).factor()} - 1')
     return p
 
 def set_seed(seed=None):
     if seed==None:
         set_random_seed()
         rseed=initial_seed()
-    else: 
+    else:
         set_random_seed(seed)
         rseed=seed
     return rseed
