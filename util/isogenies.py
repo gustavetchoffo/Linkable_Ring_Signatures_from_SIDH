@@ -25,8 +25,34 @@ def kumer_isogeny(E,xP,d):
     return phi
 
 
+@cached_function
+def CGL(E,c,d,k,
+        return_kernel=False,
+        return_phi_dual = False):
+    '''
+    Implementation of the CGL algorithm using Kummer lines
+    Input: E a supersingular elliptic curve over F_{p^2}
+           c an integer representing the kernel of the isogeny
+           d the degree of the isogeny
+           k the number of steps of the isogeny (d^k is the degree of the isogeny)
+    Output: the curve E' isogenous to E by an isogeny of degree d^k
 
-def CGL(E,c,d,k,return_kernel=False, return_phi_dual = False):
+    - If both return_kernel and return_phi_dual are False (default) the output is
+    (E', None)
+
+    - If return_kernel is True and return_phi_dual is False the output is
+    (E', [xK_0, ..., xK_{k-1}]) where xK_i is a Kummer point generating the
+    kernel of the i-th isogeny
+
+    - If return_kernel is False and return_phi_dual is True the output is
+    (E', [phi_dual_{k-1}, ..., phi_dual_0]) where phi_dual_i is the dual isogeny of the
+    i-th isogeny, reversed
+
+    - If both return_kernel and return_phi_dual are True the output is
+    (E', [phi_dual_{k-1}, ..., phi_dual_0], [xK_{k-1}, ..., xK_0])
+    with xK_i the kernel if the dual_isogeny of the i-th isogeny, reversed
+
+    '''
     M = c.digits(d,padto=k)
     #print('c in CGL=',c)
     P,Q = torsion_basis(E,d)
@@ -39,15 +65,18 @@ def CGL(E,c,d,k,return_kernel=False, return_phi_dual = False):
     xK=L(K[_sage_const_0 ])
     phi_i=KummerLineIsogeny(L,xK,d)
     vec=[]
-    phi_list=[]
+    phi_dual_list=[]
+    vec_phi_dual=[]
+
     #phi_i=Ei.isogeny(K,algorithm="factored")
     if return_kernel:
         vec.append(xK)
 
     if return_phi_dual:
         xK_dual=phi_i(L(Q[_sage_const_0 ]))
+        vec_phi_dual.append(xK_dual)
         phi_dual = KummerLineIsogeny(phi_i.codomain(),xK_dual,d)
-        phi_list.append(phi_dual)
+        phi_dual_list.append(phi_dual)
 
     for i in range(_sage_const_1 ,k):
         # Compute the curve from the Kummer Line
@@ -68,15 +97,21 @@ def CGL(E,c,d,k,return_kernel=False, return_phi_dual = False):
             vec.append(xK)
         if return_phi_dual:
             xK_dual = phi_i(Li(Q[0]))
+            vec_phi_dual.append(xK_dual)
             phi_dual = KummerLineIsogeny(phi_i.codomain(),xK_dual,d)
-            phi_list.append(phi_dual)
+            phi_dual_list.append(phi_dual)
         #PHI.append(phi_i) 
     E1=phi_i.codomain().curve()
     E1.set_order((p+_sage_const_1 )**_sage_const_2 , num_checks=_sage_const_0 )
-    if return_kernel:
+    if return_kernel and not return_phi_dual:
         return E1, vec
     if return_phi_dual:
-        return E1, reversed(phi_list)
+        phi_dual_list.reverse()
+        vec_phi_dual.reverse()
+        if return_kernel:
+            return E1, phi_dual_list, vec_phi_dual
+        else:
+            return E1, phi_dual_list
     return E1, None
 
 # giacomo this is not correct, need to be fixed
