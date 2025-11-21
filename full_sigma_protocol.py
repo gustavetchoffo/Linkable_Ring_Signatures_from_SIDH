@@ -51,13 +51,21 @@ class full_Commitment():
         rd0_leaves = self.rd0_tree.leaves()
         rd0_bytes = [leaf.value for leaf in rd0_leaves]
         rd0 = [int.from_bytes(val) for val in rd0_bytes]
+        E0=self.pp.initial_curve()
+        sk=self.sk
+        d1=self.pp.d1()
+        k1=self.pp.k1
+
+        precomputed=CGL(E0,sk,d1,k1,return_kernel=True,return_phi_dual = True)
+        print('type(precomputed[1])=',type(precomputed[1]))
 
         for i in range(m):
             self.vect_com.append(Commitment(
-                self.pp, self.sk, self.t, self.Ring, seed=seed[i], rd0=rd0[i]))
+                self.pp, sk, self.t, self.Ring, precomputed, seed=seed[i], rd0=rd0[i]))
         self.com = [Co.com() for Co in self.vect_com]
         # print(f'...nb_com={len(self.vect_com)}')
         # TODO we still have to build the merkle tree over com here
+        # Gustave: It is done during the single sigma protocol execution
         return self.com
 
 

@@ -23,7 +23,6 @@ class KeyGen():
         Z_A = IntegerModRing(A)
         self.N = pp.N_value()
 
-
         set_random_seed(self.rd)
         self.sk = Integer(Z_A.random_element())
         self.pk, phi_dual = CGL(E0,self.sk,d1,k1,
@@ -48,12 +47,15 @@ class KeyGen():
                (f' and fixed_tag_dual={self.fixed_tag_dual} for the linkability' if LINKABLE else '')
 
 class Commitment():
-    def __init__(self,pp,sk,t,R,seed=None,rd0=None):
-
+    def __init__(self,pp,sk,t,R,precomputed,seed=None,rd0=None):
+        ''' precomputed is the output of CGL(E,c,d,k,return_kernel=True,return_phi_dual = True). 
+        This value is computing once for the secret key during the execution of full sigma protocol'''        
+        A=pp.deg_phi()
+        Z_A=IntegerModRing(A)
         B=pp.deg_psi()
         ZB=IntegerModRing(B)
         self.seed=set_seed(seed)
-
+        self.precomputed=precomputed
         self.a=0 
         self.rd=[]
         self.path=[]
@@ -67,50 +69,7 @@ class Commitment():
         self.R=R
         self.vect_K_psi=[]
         self.vect_K_phi_prim=[] # actually phi_dual!!
-    '''    
-    def com_R(self):
-        n=len(self.Ring)
-        d2=self.pp.d2()
-        k2=self.pp.k2
-        Fq=pp.Fq
-        self.a,self.rd=PRNG(self.seed,n,B,pp.lamda)
-        vect_com_R=[]
-        for i in range(n):
-            E1=self.Ring[i]
-            E3, _ =CGL(E1,self.a,d2,k2,return_kernel=False)
-            j3=E3.j_invariant()
-            
-            vect_com_R.append(self.pp.C(j3.to_bytes(),self.rd[i]))
-            print('j3=',j3)
-        root,self.path=self.pp.hidden_merkle_tree(vect_com_R,vect_com_R[self.t])
-        
-        return root
-        
-    def com_L(self):
-        pp=self.pp
-        d2=self.pp.d2()
-        k2=self.pp.k2
-        d1=self.pp.d1()
-        k1=self.pp.k1
-        
-        E0=self.pp.initial_curve()
-        E1, vect_K_phi =CGL(E0,sk,d1,k1,return_kernel=True)
-        assert E1==Ring[self.t]
-        vect_K_phi_dual=[kernel_dual(xK) for xK in vect_K_phi]
-        vect_K_phi_dual.reverse()
-        print('test1',vect_K_phi_dual[0].parent().curve()==E1)
-        
-        E3, vect_K_psi_prim=CGL(E1,self.a,d2,k2,return_kernel=True)
-        
-        self.vect_K_phi_prim,self.vect_K_psi=SIDH_lider_2(vect_K_phi_dual,d1,vect_K_psi_prim,d2)
-        E2=self.vect_K_phi_prim[1].parent()
-        j2=E2.j_invariant()
-        hx=(self.rd0).str(base=16)
-        bytes_rd=bytes.fromhex(hx)
-        C0=pp.C(j2.to_bytes(),bytes_rd)
-        #E2=vect_K_phi_prim[0].curve()
-        return C0
-    '''   
+
     def com(self):
         pp=self.pp
         n=len(self.R)
@@ -130,27 +89,31 @@ class Commitment():
         vect_com_R=[]
         for i in range(n):
             if i==t:
-                E1, vect_K_phi =CGL(E0,sk,d1,k1,return_kernel=True)
+                E1, phi_dual,xK_phi_dual=self.precomputed
+                #E1, vect_K_phi =CGL(E0,sk,d1,k1,return_kernel=True)
                 assert E1==R[self.t]
-                vect_K_phi_dual=[kernel_dual(xK) for xK in vect_K_phi]
-                vect_K_phi_dual.reverse()
+                #vect_K_phi_dual=[kernel_dual(xK) for xK in vect_K_phi]
+                #vect_K_phi_dual.reverse()
+                phi=[[phi_dual[i],xK_phi_dual[i]] for i in range(len(phi_dual))]
 
-                E3, vect_K_psi_prim=CGL(E1,self.a,d2,k2,return_kernel=True)
+                E3, psi_prim, vect_K_psi_prim=CGL(E1,self.a,d2,k2,return_kernel=True,return_phi=True)
+                psi=[[psi_prim[i],vect_K_psi_prim[i]] for i in range(len(psi_prim))]
 
                 j3=E3.j_invariant()
                 C1=self.pp.C(j3.to_bytes(),self.rd[i].to_bytes(pp.lamda // 8 ))
                 vect_com_R.append(C1)
-                self.vect_K_phi_prim,self.vect_K_psi=SIDH_lider_2(vect_K_phi_dual,d1,vect_K_psi_prim,d2)
+                self.phi_prim,self.psi_prim=SIDH_lider_2(phi,d1,psi,d2)
+                #self.vect_K_phi_prim,self.vect_K_psi=SIDH_lider_2(vect_K_phi_dual,d1,vect_K_psi_prim,d2)
                 #print('test degree',self.vect_K_phi_prim[0].curve_point().order()==self.vect_K_phi_prim[0].curve_point().order()==d1)
-                xK=self.vect_K_phi_prim[1 ]
-                L1=xK.parent()
-                xT=self.vect_K_psi[1 ]
-                L2=xT.parent()
-                phi1=KummerLineIsogeny(L1,xK,d1)
-                psi1=KummerLineIsogeny(L2,xT,d2)
-                assert phi1.codomain()==psi1.codomain()
+                #xK=self.vect_K_phi_prim[1 ]
+                #L1=xK.parent()
+                #xT=self.vect_K_psi[1 ]
+                #L2=xT.parent()
+                #phi1=KummerLineIsogeny(L1,xK,d1)
+                #psi1=KummerLineIsogeny(L2,xT,d2)
+                #assert phi1.codomain()==psi1.codomain()
 
-                E2=phi1.codomain().curve()
+                E2=self.phi_prim[0][1].codomain().curve()
                 self.j2=E2.j_invariant()
                 #hx=(self.rd0).str(base=16)
                 #bytes_rd=bytes.fromhex(hx)
@@ -171,19 +134,21 @@ class Commitment():
 
 def response(pp,sk,R,t,com,ch,with_rd=False):
     assert ch in [0,1,2]
+    vect_K_psi=com.psi_prim[1]
+    vect_K_phi_prim=com.phi_prim[1]
     if ch==2 :
         if with_rd:
-            resp=[com.vect_K_psi,com.rd0]
+            resp=[vect_K_psi,com.rd0]
         else:
-            resp=[com.vect_K_psi]
+            resp=[vect_K_psi]
     else:
         if ch==1 :
             resp=com.seed
         else:
             if with_rd:
-                resp=[[com.j2,com.rd0],[com.vect_K_phi_prim,com.rd[t]],com.path]
+                resp=[[com.j2,com.rd0],[vect_K_phi_prim,com.rd[t]],com.path]
             else:
-                resp=[[com.j2],[com.vect_K_phi_prim,com.rd[t]],com.path]
+                resp=[[com.j2],[vect_K_phi_prim,com.rd[t]],com.path]
     return resp
 '''
 TO DO: represent the isogenies with integers c=(c1,c2) so that it can be recovred by CGL

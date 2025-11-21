@@ -64,8 +64,10 @@ class SetUp():
 
     def deg_phi(self): #deg(phi)=A
         return (self.d1())**(self.k1)
+
     def deg_psi(self): #deg(psi)=B
         return (self.d2())**(self.k2)
+
     def initial_curve(self):
         p=self.prime()
         Fp=GF(p)
@@ -75,12 +77,8 @@ class SetUp():
         
     def H(self,data):  #The hash function
         h= hashlib.shake_256()
-        
         h.update(data)
-        
         hashed=h.digest(self.lamda/4 )
-        
-        
         return hashed
     
     def C(self,data,rd): #Commitment function

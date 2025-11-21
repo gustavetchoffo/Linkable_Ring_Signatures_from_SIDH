@@ -1,5 +1,6 @@
 #load('/home/gustave/sage/Linkable_Ring_Signatures_from_SIDH/full_sigma_protocol.sage') 
 from full_sigma_protocol import *
+#from sidh_lider import *
 import random
 
 def RS_sign(pp,sk,t,Ring,msg):
@@ -32,7 +33,7 @@ Ring=[K.pk for K in keys]
 t=2
 sk=keys[t].sk
 print(sk)
-msg='isogeny-based ring signature'
+msg='isogeny-based ring signature from isogenies'
 print('.....................................................')
 #for _ in range(10):
 t1=time.time()

@@ -28,7 +28,8 @@ def kumer_isogeny(E,xP,d):
 @cached_function
 def CGL(E,c,d,k,
         return_kernel=False,
-        return_phi_dual = False):
+        return_phi_dual = False,
+        return_phi= False):
     '''
     Implementation of the CGL algorithm using Kummer lines
     Input: E a supersingular elliptic curve over F_{p^2}
@@ -37,7 +38,7 @@ def CGL(E,c,d,k,
            k the number of steps of the isogeny (d^k is the degree of the isogeny)
     Output: the curve E' isogenous to E by an isogeny of degree d^k
 
-    - If both return_kernel and return_phi_dual are False (default) the output is
+    - If both return_kernel, return_phi_dual and return_phi are False (default) the output is
     (E', None)
 
     - If return_kernel is True and return_phi_dual is False the output is
@@ -50,13 +51,16 @@ def CGL(E,c,d,k,
 
     - If both return_kernel and return_phi_dual are True the output is
     (E', [phi_dual_{k-1}, ..., phi_dual_0], [xK_{k-1}, ..., xK_0])
-    with xK_i the kernel if the dual_isogeny of the i-th isogeny, reversed
+    with xK_i the kernel of the dual_isogeny of the i-th isogeny, reversed
+    
+    - If both return_kernel and return_phi are True the output is 
+    (E',[phi_0,...,phi_{k_1}],[xK_0, ..., xK_{k-1}]) where xK_i is a Kummer point generating the
+    kernel of the isogeny phi_i
 
     '''
     M = c.digits(d,padto=k)
-    #print('c in CGL=',c)
     P,Q = torsion_basis(E,d)
-    #print('P=',P,'\n Q=',Q)
+
     if d%_sage_const_2 ==_sage_const_0 :
         f=factor(d)[_sage_const_0 ][_sage_const_1 ]
         P,Q=fix_torsion_basis_renes(P, Q, f)
@@ -67,10 +71,14 @@ def CGL(E,c,d,k,
     vec=[]
     phi_dual_list=[]
     vec_phi_dual=[]
+    phi=[]
 
     #phi_i=Ei.isogeny(K,algorithm="factored")
     if return_kernel:
         vec.append(xK)
+
+    if return_phi:
+        phi.append(phi_i)
 
     if return_phi_dual:
         xK_dual=phi_i(L(Q[_sage_const_0 ]))
@@ -91,10 +99,12 @@ def CGL(E,c,d,k,
         P,Q=my_torsion_basis(Ei,d,phi_Q)
         #print('P=',P,'\n Q=',Q)
         K=P+M[i]*Q
-        xK      = Li(K[0])
+        xK = Li(K[0])
         phi_i = KummerLineIsogeny(Li,xK,d)
         if return_kernel:
             vec.append(xK)
+        if return_phi:
+            phi.append(phi_i)
         if return_phi_dual:
             xK_dual = phi_i(Li(Q[0]))
             vec_phi_dual.append(xK_dual)
@@ -104,6 +114,8 @@ def CGL(E,c,d,k,
     E1=phi_i.codomain().curve()
     E1.set_order((p+_sage_const_1 )**_sage_const_2 , num_checks=_sage_const_0 )
     if return_kernel and not return_phi_dual:
+        if return_phi:
+            return E1, phi, vec
         return E1, vec
     if return_phi_dual:
         phi_dual_list.reverse()
@@ -112,6 +124,7 @@ def CGL(E,c,d,k,
             return E1, phi_dual_list, vec_phi_dual
         else:
             return E1, phi_dual_list
+
     return E1, None
 
 # giacomo this is not correct, need to be fixed
@@ -166,7 +179,7 @@ def kernel_dual(xK):
     xR=L1(phi(xQ).curve_point()[_sage_const_0 ])
     return xR
 
-def SIDH_diagram(xK_phi,d1,xK_psi,d2):
+def SIDH_diagram(xK_phi,d1,xK_psi,d2, phi=None,psi=None):
     '''
     Construction of SIDH diagram (with rational isogenies)
     Input: a generator of Ker(phi) and a generator of Ker(psi_prim)
@@ -176,8 +189,10 @@ def SIDH_diagram(xK_phi,d1,xK_psi,d2):
     E0=L0.curve()
     if L0!=xK_psi.parent():
         raise ValueError('The codomaine of phi chould be the domaine of psi_prim')
-    psi=KummerLineIsogeny(L0,xK_psi,d2)
-    phi=KummerLineIsogeny(L0,xK_phi,d1)
+    if psi==None:
+        psi=KummerLineIsogeny(L0,xK_psi,d2)
+    if phi==None:
+        phi=KummerLineIsogeny(L0,xK_phi,d1)
     L1=phi.codomain()
     #compute the right isogeny
     xK_psi_prim=phi(xK_psi)
@@ -187,15 +202,15 @@ def SIDH_diagram(xK_phi,d1,xK_psi,d2):
     L2=psi.codomain()
     phi_prim=KummerLineIsogeny(L2,xK_phi_prim,d1)
     assert phi_prim.codomain()==psi_prim.codomain()
-    return xK_phi_prim,xK_psi_prim
+    return [phi_prim,xK_phi_prim],[psi_prim,xK_psi_prim]
 
-
+'''
 def SIDH_lider_2(vect_xK_phi,d1,vect_xK_psi,d2):
-    '''
-    For 2x2 SIDH lider
-    Imput: vectors of points generating Ker(phi) and Ker(psi_prim) respectively
-    Output: vectors of points generating Ker(psi) and Ker(phi_prim)
-    '''
+    
+    #For 2x2 SIDH lider
+    #Imput: vectors of points generating Ker(phi) and Ker(psi_prim) respectively
+    #Output: vectors of points generating Ker(psi) and Ker(phi_prim)
+    
     xK={}
     xT={}
     #Ker(phi)=:K
@@ -210,4 +225,33 @@ def SIDH_lider_2(vect_xK_phi,d1,vect_xK_psi,d2):
     xK[_sage_const_2 ,_sage_const_1 ],xT[_sage_const_1 ,_sage_const_2 ]=SIDH_diagram(xK[_sage_const_1 ,_sage_const_1 ],d1,xT[_sage_const_1 ,_sage_const_1 ],d2)
     
     return [xK[_sage_const_2 ,_sage_const_0 ],xK[_sage_const_2 ,_sage_const_1 ]],[xT[_sage_const_0 ,_sage_const_2 ],xT[_sage_const_1 ,_sage_const_2 ]] #phi_pri, psi_prim
+'''
 
+def SIDH_lider_2(phi,d1,psi,d2):
+    '''
+    For 2x2 SIDH lider
+    Imput: phi=[[phi_0,K_0],[phi_1,K_1]] and psi=[[psi_0,T_0],[psi_1,T_1]] where K_i generates Ker(phi_i) and T_i generates Ker(psi_i)
+            d1 and d2 the degrees of phi_i and psi_i respectively
+    Output: vectors of isogenies phi_prim and psi_prim as well as  points generating Ker(phi_prim_i) and Ker(psi_prim_i) respectively
+    '''
+    xK={}
+    xT={}
+    phi_list={}
+    psi_list={}
+    #Ker(phi)=:K
+    #Ker(psi)=:T
+    xK[0 ,0 ]=phi[0][1]
+    xK[0 ,1 ]=phi[1][1]
+    xT[0 ,0 ]=psi[0][1]
+    xT[1 ,0 ]=psi[1][1]
+    phi_list[0 ,0 ]=phi[0][0]
+    phi_list[0 ,1 ]=phi[1][0]
+    psi_list[0 ,0 ]=psi[0][0]
+    psi_list[1 ,0 ]=psi[1][0]
+    [phi_list[1,0],xK[1 ,0 ]],[psi_list[0,1],xT[0 ,1 ]]=SIDH_diagram(xK[0 ,0 ],d1,xT[0 ,0 ],d2, phi=phi_list[0,0], psi=psi_list[0,0])
+    [phi_list[1,1],xK[1 ,1 ]],[psi_list[0,2],xT[0 ,2 ]]=SIDH_diagram(xK[0 ,1 ],d1,xT[0 ,1 ],d2, phi=phi_list[0,1], psi=psi_list[0,1])
+    [phi_list[2,0],xK[2 ,0 ]],[psi_list[1,1],xT[1 ,1 ]]=SIDH_diagram(xK[1 ,0 ],d1,xT[1 ,0 ],d2, phi=phi_list[1,0], psi=psi_list[1,0])
+    [phi_list[2,1],xK[2 ,1 ]],[psi_list[1,2],xT[1 ,2 ]]=SIDH_diagram(xK[1 ,1 ],d1,xT[1 ,1 ],d2, phi=phi_list[1,1], psi=psi_list[1,1])
+    assert phi_list[2,1].codomain()==psi_list[1,2].codomain()
+    
+    return [ [phi_list[2,0], phi_list[2,1]], [xK[2 ,0 ], xK[2 ,1 ]] ],[ [psi_list[0,2], psi_list[1,2]], [ xT[0 ,2 ], xT[1 ,2 ]] ] #phi_pri, psi_prim
